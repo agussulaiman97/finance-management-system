@@ -1,0 +1,22 @@
+# dependencies
+node_modules
+
+# env
+.env
+
+# build
+dist
+build
+
+# export files
+exports
+
+# logs
+logs
+*.log
+
+# vscode
+.vscode
+
+# mac
+.DS_Store
