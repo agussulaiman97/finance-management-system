@@ -1,16 +1,32 @@
-const { DataTypes } = require('sequelize')
-const sequelize = require('../config/database')
+import { DataTypes } from 'sequelize'
+import sequelize from '../config/database.js'
 
-const Transaction = sequelize.define('transactions', {
-  type: DataTypes.STRING,
+const Transaction = sequelize.define(
+  'Transaction',
+  {
+    type: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
 
-  category: DataTypes.STRING,
+    category: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
 
-  amount: DataTypes.BIGINT,
+    amount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
 
-  description: DataTypes.TEXT,
+    note: {
+      type: DataTypes.TEXT,
+    },
 
-  transaction_date: DataTypes.DATE,
-})
+    date: {
+      type: DataTypes.DATEONLY,
+    },
+  }
+)
 
-module.exports = Transaction
+export default Transaction

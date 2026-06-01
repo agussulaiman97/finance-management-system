@@ -3,6 +3,24 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
+import expenseRoutes from './routes/expenseRoutes.js'
+
+/*
+========================================
+DATABASE
+========================================
+*/
+
+import sequelize from './config/database.js'
+
+/*
+========================================
+MODELS
+========================================
+*/
+
+import Category from './models/Category.js'
+import Transaction from './models/Transaction.js'
 
 dotenv.config()
 
@@ -15,42 +33,16 @@ MIDDLEWARE
 */
 
 app.use(cors())
+
 app.use(express.json())
 
 /*
 ========================================
-DUMMY DATABASE
+EXPENSE ROUTES
 ========================================
 */
 
-let categories = [
-  {
-    id: 1,
-    name: 'Belanja bulanan',
-    type: 'expense',
-    createdAt: new Date(),
-  },
-]
-
-let transactions = [
-  {
-    id: 1,
-    type: 'expense',
-    category: 'Belanja bulanan',
-    amount: 250000,
-    note: '-',
-    date: '2026-05-24',
-  },
-
-  {
-    id: 2,
-    type: 'expense',
-    category: 'bayar wifi',
-    amount: 300000,
-    note: '-',
-    date: '2026-05-23',
-  },
-]
+app.use('/api/expenses', expenseRoutes)
 
 /*
 ========================================
@@ -69,13 +61,32 @@ app.get('/', (req, res) => {
 
 /*
 ========================================
-GET TRANSACTIONS
+GET ALL TRANSACTIONS
 ========================================
 */
 
-app.get('/api/transactions', (req, res) => {
+app.get('/api/transactions', async (req, res) => {
 
-  res.json(transactions)
+  try {
+
+    const transactions = await Transaction.findAll({
+
+      order: [['createdAt', 'DESC']],
+
+    })
+
+    res.json(transactions)
+
+  } catch (error) {
+
+    console.log(error)
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    })
+
+  }
 
 })
 
@@ -85,34 +96,57 @@ ADD TRANSACTION
 ========================================
 */
 
-app.post('/api/transactions', (req, res) => {
+app.post('/api/transactions', async (req, res) => {
 
   try {
 
-    const newTransaction = {
-  id: Date.now(),
+    const {
 
-  type: req.body.type,
+      type,
+      category,
+      amount,
+      note,
 
-  category: req.body.category,
+    } = req.body
 
-  amount: Number(req.body.amount),
+    /*
+    ========================================
+    VALIDATION
+    ========================================
+    */
 
-  note: req.body.note || '-',
+    if (!type || !category || !amount) {
 
-  // FIX INVALID DATE
-  createdAt: new Date(),
+      return res.status(400).json({
 
-  // FIX COMPATIBILITY
-  date: new Date(),
-}
+        success: false,
+        message: 'Data transaksi belum lengkap',
 
-    transactions.unshift(newTransaction)
+      })
+
+    }
+
+    /*
+    ========================================
+    CREATE TRANSACTION
+    ========================================
+    */
+
+    const newTransaction = await Transaction.create({
+
+      type,
+      category,
+      amount,
+      note: note || '-',
+
+    })
 
     res.json({
+
       success: true,
       message: 'Transaksi berhasil ditambahkan',
       data: newTransaction,
+
     })
 
   } catch (error) {
@@ -120,8 +154,10 @@ app.post('/api/transactions', (req, res) => {
     console.log(error)
 
     res.status(500).json({
+
       success: false,
       message: error.message,
+
     })
 
   }
@@ -134,19 +170,23 @@ DELETE TRANSACTION
 ========================================
 */
 
-app.delete('/api/transactions/:id', (req, res) => {
+app.delete('/api/transactions/:id', async (req, res) => {
 
   try {
 
-    const id = Number(req.params.id)
+    const { id } = req.params
 
-    transactions = transactions.filter(
-      (item) => item.id !== id
-    )
+    await Transaction.destroy({
+
+      where: { id },
+
+    })
 
     res.json({
+
       success: true,
       message: 'Transaksi berhasil dihapus',
+
     })
 
   } catch (error) {
@@ -154,8 +194,10 @@ app.delete('/api/transactions/:id', (req, res) => {
     console.log(error)
 
     res.status(500).json({
+
       success: false,
       message: error.message,
+
     })
 
   }
@@ -164,13 +206,34 @@ app.delete('/api/transactions/:id', (req, res) => {
 
 /*
 ========================================
-GET CATEGORIES
+GET ALL CATEGORIES
 ========================================
 */
 
-app.get('/api/categories', (req, res) => {
+app.get('/api/categories', async (req, res) => {
 
-  res.json(categories)
+  try {
+
+    const categories = await Category.findAll({
+
+      order: [['createdAt', 'DESC']],
+
+    })
+
+    res.json(categories)
+
+  } catch (error) {
+
+    console.log(error)
+
+    res.status(500).json({
+
+      success: false,
+      message: error.message,
+
+    })
+
+  }
 
 })
 
@@ -180,34 +243,48 @@ ADD CATEGORY
 ========================================
 */
 
-app.post('/api/categories', (req, res) => {
+app.post('/api/categories', async (req, res) => {
 
   try {
 
     const { name, type } = req.body
 
+    /*
+    ========================================
+    VALIDATION
+    ========================================
+    */
+
     if (!name || !type) {
 
       return res.status(400).json({
+
         success: false,
-        message: 'Nama dan type wajib diisi',
+        message: 'Nama kategori dan type wajib diisi',
+
       })
 
     }
 
-    const newCategory = {
-      id: Date.now(),
+    /*
+    ========================================
+    CREATE CATEGORY
+    ========================================
+    */
+
+    const newCategory = await Category.create({
+
       name,
       type,
-      createdAt: new Date(),
-    }
 
-    categories.unshift(newCategory)
+    })
 
     res.json({
+
       success: true,
       message: 'Kategori berhasil ditambahkan',
       data: newCategory,
+
     })
 
   } catch (error) {
@@ -215,8 +292,10 @@ app.post('/api/categories', (req, res) => {
     console.log(error)
 
     res.status(500).json({
+
       success: false,
       message: error.message,
+
     })
 
   }
@@ -229,19 +308,23 @@ DELETE CATEGORY
 ========================================
 */
 
-app.delete('/api/categories/:id', (req, res) => {
+app.delete('/api/categories/:id', async (req, res) => {
 
   try {
 
-    const id = Number(req.params.id)
+    const { id } = req.params
 
-    categories = categories.filter(
-      (item) => item.id !== id
-    )
+    await Category.destroy({
+
+      where: { id },
+
+    })
 
     res.json({
+
       success: true,
       message: 'Kategori berhasil dihapus',
+
     })
 
   } catch (error) {
@@ -249,8 +332,10 @@ app.delete('/api/categories/:id', (req, res) => {
     console.log(error)
 
     res.status(500).json({
+
       success: false,
       message: error.message,
+
     })
 
   }
@@ -268,31 +353,37 @@ app.get('/api/export/expense/pdf', async (req, res) => {
   try {
 
     const filePath = path.join(
+
       process.cwd(),
       'exports',
       'laporan-pengeluaran.pdf'
+
     )
 
     /*
     ========================================
-    CREATE FOLDER EXPORTS
+    CREATE EXPORT FOLDER
     ========================================
     */
 
     fs.mkdirSync(
+
       path.dirname(filePath),
       { recursive: true }
+
     )
 
     /*
     ========================================
-    DUMMY PDF FILE
+    DUMMY PDF
     ========================================
     */
 
     fs.writeFileSync(
+
       filePath,
       'Laporan PDF Pengeluaran'
+
     )
 
     /*
@@ -308,8 +399,10 @@ app.get('/api/export/expense/pdf', async (req, res) => {
     console.log(error)
 
     res.status(500).json({
+
       success: false,
       message: 'Export PDF gagal',
+
     })
 
   }
@@ -327,31 +420,37 @@ app.get('/api/export/expense/excel', async (req, res) => {
   try {
 
     const filePath = path.join(
+
       process.cwd(),
       'exports',
       'laporan-pengeluaran.xlsx'
+
     )
 
     /*
     ========================================
-    CREATE FOLDER EXPORTS
+    CREATE EXPORT FOLDER
     ========================================
     */
 
     fs.mkdirSync(
+
       path.dirname(filePath),
       { recursive: true }
+
     )
 
     /*
     ========================================
-    DUMMY EXCEL FILE
+    DUMMY EXCEL
     ========================================
     */
 
     fs.writeFileSync(
+
       filePath,
       'Laporan Excel Pengeluaran'
+
     )
 
     /*
@@ -367,8 +466,10 @@ app.get('/api/export/expense/excel', async (req, res) => {
     console.log(error)
 
     res.status(500).json({
+
       success: false,
       message: 'Export Excel gagal',
+
     })
 
   }
@@ -384,8 +485,10 @@ app.get('/api/export/expense/excel', async (req, res) => {
 app.use((req, res) => {
 
   res.status(404).json({
+
     success: false,
     message: 'API Route Not Found',
+
   })
 
 })
@@ -398,11 +501,54 @@ START SERVER
 
 const PORT = process.env.PORT || 5000
 
-app.listen(PORT, () => {
+async function startServer() {
 
-  console.log('=================================')
-  console.log(`🚀 Server running on port ${PORT}`)
-  console.log(`🌐 API URL: http://localhost:${PORT}`)
-  console.log('=================================')
+  try {
 
-})
+    /*
+    ========================================
+    CONNECT DATABASE
+    ========================================
+    */
+
+    await sequelize.authenticate()
+
+    console.log('✅ PostgreSQL Connected')
+
+    /*
+    ========================================
+    SYNC DATABASE
+    ========================================
+    */
+
+    await sequelize.sync()
+
+    console.log('✅ Database Sync Success')
+
+    /*
+    ========================================
+    RUN SERVER
+    ========================================
+    */
+
+    app.listen(PORT, () => {
+
+      console.log('=================================')
+      console.log(`🚀 Server running on port ${PORT}`)
+      console.log(`🌐 API URL: http://localhost:${PORT}`)
+      console.log('=================================')
+
+    })
+
+  } catch (error) {
+
+    console.log(
+      '❌ Database Error:',
+      error.message
+    )
+
+  }
+
+}
+
+startServer()
